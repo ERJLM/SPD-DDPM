@@ -43,7 +43,7 @@ class Diffusion:
 
         self.device = device
         self.spd_size = spd_size
-        self.beta = self.prepare_noise_schedule().to(device)   
+        self.beta = self.prepare_noise_schedule().to(self.device)   
         self.alpha = torch.sqrt(1 - self.beta)
         self.alpha_hat = torch.cumprod(self.alpha, dim=0)    
         self.beta_hat = 1-self.alpha_hat**2           
@@ -52,6 +52,8 @@ class Diffusion:
         return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
     
     def noise_images(self, x, t):
+        """ Corresponds to Algorithm 1 in the paper"""
+        
         alpha_hat = self.alpha_hat[t]
         alpha = self.alpha[t]
         beta_hat = torch.sqrt(self.beta_hat[t])
@@ -63,7 +65,7 @@ class Diffusion:
 
         mean = np.eye(m)
         epi1 = sample_gaussian_spd(n,mean,1,n_jobs=40)
-        epi1 = torch.tensor(epi1).to("cuda")
+        epi1 = torch.tensor(epi1).to(self.device)
 
         epi1_beta = spd_mul(epi1,beta_hat.unsqueeze(1).unsqueeze(2))
 
@@ -80,19 +82,21 @@ class Diffusion:
         return t
 
     def sample(self, model,n):
+        """ Corresponds to Algorithm 2 in the paper (without the gradient descent step)."""
+        
         init = pd.read_csv("data/uncondition/exp1_setting1_init.csv")
         init =  torch.tensor(init.values)
-        init_tensor =  init.repeat(n, 1,1).to("cuda")
+        init_tensor =  init.repeat(n, 1,1).to(self.device)
         model.eval()
         with torch.no_grad():
             mean = np.eye(self.spd_size)
             x = sample_gaussian_spd(n,mean,1,n_jobs=40)
-            x = torch.tensor(x).to("cuda")
+            x = torch.tensor(x).to(self.device)
             test_dis = spd_dis(init_tensor,x).mean().cpu()
             print(test_dis)
             for i in reversed(range(1,self.noise_steps)):
                 print(i)
-                t = torch.tensor([i]).repeat(n).to("cuda") 
+                t = torch.tensor([i]).repeat(n).to(self.device) 
                 beta = self.beta[t][0]
                 beta_hat = torch.sqrt(self.beta_hat[t][0])
                 beta_hat_t_1 = self.beta_hat[t-1][0]
@@ -104,7 +108,7 @@ class Diffusion:
                 n  = x.shape[0]
                 mean = np.eye(self.spd_size)
                 epi = sample_gaussian_spd(n,mean,1,n_jobs=40)
-                epi = torch.tensor(epi).to("cuda")
+                epi = torch.tensor(epi).to(self.device)
                 epi_beta = tensor_power(epi,beta_hat.item())
                 predicted_noise = model(x, t)
                 loss = spd_dis(epi, predicted_noise).mean()
@@ -124,7 +128,7 @@ class Diffusion:
 
                 
                 unit_matrix = torch.eye(self.spd_size).unsqueeze(0)  
-                merged_tensor = unit_matrix.repeat(n, 1, 1).to("cuda").double()
+                merged_tensor = unit_matrix.repeat(n, 1, 1).to(self.device).double()
                 dis2 = spd_dis(merged_tensor,x).mean().cpu()
 
                 print(test_dis)
@@ -173,7 +177,7 @@ def train(args):
         pbar = tqdm(dataloader)
         lr1 = adjust_learning_rate(optimizer, epoch, args)
         for  i, spds in enumerate(pbar):
-            spds = spds.to("cuda")
+            spds = spds.to(device)
             t = diffusion.sample_timesteps(args.batch_size).to(device)
             
             x_t, epi,r = diffusion.noise_images(spds, t)
@@ -193,7 +197,6 @@ def train(args):
         results['lr'].append(lr1)
         data_frame = pd.DataFrame(data=results, index=range(epoch_start, epoch + 1))
         data_frame.to_csv(args.results_dir + '/log.csv', index_label='epoch')
-
         torch.save({'epoch': epoch, 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict(),}, args.results_dir + '/model_last.pth')
 
 
@@ -207,7 +210,8 @@ def launch():
     args.spd_size = 8
     args.time_size = 256
     args.dataset_path = "data/uncondition/train_data.csv"
-    args.device = "cuda"
+    args.device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(args.device)
     args.lr = 0.0015
     args.results_dir = 'result/spd_ddpm_un-' + datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     args.resume = ""

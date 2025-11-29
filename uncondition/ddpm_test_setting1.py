@@ -8,7 +8,7 @@ from pyriemann.datasets import sample_gaussian_spd
 
 
 def ddpm_sample(n,path):
-    device = "cuda"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     model = SPD_NET(spd_size=m,time_size=256).to(device)
     ckpt = torch.load(path)
     model.load_state_dict(ckpt['state_dict'])
@@ -16,13 +16,16 @@ def ddpm_sample(n,path):
     x = diffusion.sample(model,n)
     return x
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
 n = 300
 m = 8
 init = pd.read_csv("data/uncondition/exp1_setting1_init.csv")
 init =  torch.tensor(init.values)
-init_tensor =  init.repeat(n, 1,1).to("cuda")
+init_tensor =  init.repeat(n, 1,1).to(device)
 model_path = "result/spd_uncondition.pth"
 
+# Unconditional sampling using the SPD-DDPM model.
+# This is described on Algorithm 2 in the paper.
 sample_list = ddpm_sample(n,model_path)
 test_dis = spd_dis(init_tensor,sample_list).cpu()
 mask1 = torch.isnan(test_dis) == False

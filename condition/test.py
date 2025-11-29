@@ -6,7 +6,7 @@ from support_function import *
 
 
 def ddpm_sample(n,path,Y,Y_size):
-    device = "cuda"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     model = SPD_NET(m,256,Y_size).to(device)
     ckpt = torch.load(path)
     model.load_state_dict(ckpt['state_dict'])
@@ -26,9 +26,13 @@ a = 0
 model_path = "result/spd_condition.pth"
 Y_size = Y.shape[1]
 vectors_list = pd.DataFrame(index=range(n_sample*num), columns=range(m*m))
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# The following loop implements conditional inference (sample generation) of the SPD-DDPM model.
+# This is described on Algorithm 4 in the paper.
 for i in range(n_sample):
     Y_loc = pd.DataFrame([Y.iloc[a+i]] * num, columns=Y.columns)
-    Y_loc = torch.tensor(Y_loc.values).to("cuda")
+    Y_loc = torch.tensor(Y_loc.values).to(device)
     samples = ddpm_sample(num,model_path,Y_loc,Y_size)
     n_len = samples.size(0)
 

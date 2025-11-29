@@ -7,11 +7,12 @@ from pyriemann.datasets import sample_gaussian_spd
 
 
 def generate_train_sample(n,m):
-    init = torch.tensor(generate_init(m)).unsqueeze(0).to("cuda")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    init = torch.tensor(generate_init(m)).unsqueeze(0).to(device)
     sample_list = torch.empty((n, m, m))
     mean = np.eye(m)
     samples = sample_gaussian_spd(n,mean,0.4,n_jobs=40)
-    samples = torch.tensor(samples).to("cuda")
+    samples = torch.tensor(samples).to(device)
     sample_beta = tensor_power(samples,0.5)
     sample_list = torch.matmul(torch.matmul((tensor_power(init,0.5)),samples),tensor_power(init,0.5))
     vectors = sample_list.reshape(n, m*m)

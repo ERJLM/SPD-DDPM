@@ -35,6 +35,9 @@ class Diffusion:
         return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
     
     def noise_images(self, x, t):
+        """ Corresponds to Algorithm 3 in the paper (excluding gradient descent step)"""
+        
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         alpha_hat = self.alpha_hat[t].unsqueeze(1).unsqueeze(2)
         alpha = self.alpha[t]
         beta_hat = torch.sqrt(self.beta_hat[t])
@@ -46,7 +49,7 @@ class Diffusion:
 
         mean = np.eye(m)
         epi1 = sample_gaussian_spd(n,mean,1,n_jobs=40)
-        epi1 = torch.tensor(epi1).to("cuda")
+        epi1 = torch.tensor(epi1).to(device)
         epi1_beta = spd_mul(epi1,beta_hat.unsqueeze(1).unsqueeze(2))
         x_t = spd_plus(spd_mul(x,alpha_hat),spd_mul(epi1,beta_hat.unsqueeze(1).unsqueeze(2)))
         r1 = (beta**2)/(beta_hat)/alpha
@@ -59,17 +62,21 @@ class Diffusion:
         return t
 
     def sample(self, model,n1,Y):
+        """ Corresponds to Algorithm 4 in the paper (lines 2-6)
+            The complete algorithm is in the condition test.py file """
+            
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         with torch.no_grad():
             mean = np.eye(self.spd_size)
             x = sample_gaussian_spd(n1,mean,1,n_jobs=40)
-            x = torch.tensor(x).to("cuda")
+            x = torch.tensor(x).to(device)
             model.eval()
             for i in reversed(range(1,self.noise_steps)):
                 n = x.size(0)
                 if n < 2:
                     x =  torch.full((n1, 10, 10), float('nan'))
                     break
-                t = torch.tensor([i]).repeat(n).to("cuda") 
+                t = torch.tensor([i]).repeat(n).to(device) 
                 beta = self.beta[t][0]
                 beta_hat = torch.sqrt(self.beta_hat[t][0])
                 beta_hat_t_1 = self.beta_hat[t-1][0]
@@ -80,7 +87,7 @@ class Diffusion:
 
                 mean = np.eye(self.spd_size)
                 epi = sample_gaussian_spd(n,mean,1,n_jobs=40)
-                epi = torch.tensor(epi).to("cuda")    
+                epi = torch.tensor(epi).to(device)    
                 epi_beta = tensor_power(epi,beta_hat.item())
                 predicted_noise = model(x, t,Y)
                 loss = spd_dis(epi, predicted_noise).mean()
@@ -136,12 +143,12 @@ def train(args):
         pbar = tqdm(dataloader)
         lr1 = adjust_learning_rate(optimizer, epoch, args)
         for  i, (spds,Y) in enumerate(pbar):
-            spds = spds.to("cuda")
+            spds = spds.to(device)
             n = spds.shape[0]
 
             t = diffusion.sample_timesteps(n).to(device)           
             x_t, epi,r = diffusion.noise_images(spds, t)
-            Y = Y.to("cuda")
+            Y = Y.to(device)
             predicted_noise = model(x_t, t,Y)
             loss = spd_dis(epi, predicted_noise)
             loss = loss.mean()
@@ -171,7 +178,7 @@ def launch():
     args.spd_size = 10
     args.time_size = 256
     args.dataset_path = "data/condition/train_data.csv"
-    args.device = "cuda"
+    args.device = "cuda" if torch.cuda.is_available() else "cpu"
     args.lr = 0.001
     args.results_dir = 'result/ddpm_co-' + datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     args.resume = ""
