@@ -1,0 +1,8 @@
+{
+  "run_name": "DDPM_Unconditional",
+  "epochs": 50,
+  "batch_size": 150,
+  "spd_size": 8,
+  "time_size": 256,
+  "dataset_path": "data/uncondition/train_data.csv",
+  "device": 
