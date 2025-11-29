@@ -1,0 +1,12 @@
+{
+  "run_name": "DDPM_Unconditional",
+  "epochs": 50,
+  "batch_size": 150,
+  "spd_size": 8,
+  "time_size": 256,
+  "dataset_path": "data/uncondition/train_data.csv",
+  "device": "cpu",
+  "lr": 0.0015,
+  "results_dir": "result/spd_ddpm_un-2025-11-29-17-20-48",
+  "resume": ""
+}
