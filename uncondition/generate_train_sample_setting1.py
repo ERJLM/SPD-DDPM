@@ -7,6 +7,7 @@ from pyriemann.datasets import sample_gaussian_spd
 
 
 def generate_train_sample(n,m):
+    """Generate n training samples (m*m matrices)"""
     device = "cuda" if torch.cuda.is_available() else "cpu"
     init = torch.tensor(generate_init(m)).unsqueeze(0).to(device)
     sample_list = torch.empty((n, m, m))
@@ -14,12 +15,14 @@ def generate_train_sample(n,m):
     samples = sample_gaussian_spd(n,mean,0.4,n_jobs=40)
     samples = torch.tensor(samples).to(device)
     sample_beta = tensor_power(samples,0.5)
+    # Translate the samples so they are centered arounf the init sample
     sample_list = torch.matmul(torch.matmul((tensor_power(init,0.5)),samples),tensor_power(init,0.5))
-    vectors = sample_list.reshape(n, m*m)
+    vectors = sample_list.reshape(n, m*m) 
 
     return vectors.cpu(),init.cpu()
 
 def generate_init(m):
+    """ Generate the center of the training samples"""
     A = np.random.rand(m, m)
     A = 0.5 * (A + A.T)
     eigenvalues, _ = np.linalg.eig(A)

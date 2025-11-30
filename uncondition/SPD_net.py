@@ -292,5 +292,5 @@ class SPDIncreaseDim(nn.Module):
 
 model = SPD_NET(8,100)
 total_params = sum(p.numel() for p in model.parameters())
-print(f"总参数数量: {total_params}")
+print(f"Total number of parameters: {total_params}")
 

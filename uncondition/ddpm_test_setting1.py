@@ -21,13 +21,13 @@ n = 300
 m = 8
 init = pd.read_csv("data/uncondition/exp1_setting1_init.csv")
 init =  torch.tensor(init.values)
-init_tensor =  init.repeat(n, 1,1).to(device)
-model_path = "result/spd_uncondition.pth"
+init_tensor =  init.repeat(n, 1,1).to(device) # Repeat the tensor n times
+model_path = "result/spd_ddpm_un-2025-11-29-17-20-48/model_last.pth" #"result/spd_uncondition.pth"
 
 # Unconditional sampling using the SPD-DDPM model.
 # This is described on Algorithm 2 in the paper.
 sample_list = ddpm_sample(n,model_path)
-test_dis = spd_dis(init_tensor,sample_list).cpu()
+test_dis = spd_dis(init_tensor,sample_list).cpu() # Distances between target and generated samples by the SPD_DDPM
 mask1 = torch.isnan(test_dis) == False
 test_dis = test_dis[mask1]
 
@@ -35,6 +35,6 @@ print(test_dis.mean())
 
 vectors = sample_list.reshape(n, m*m).cpu()
 df = pd.DataFrame(vectors)
-df.to_csv("data/uncondition/generated_samples_spd_ddpm.csv.csv",index=False)
+df.to_csv("data/uncondition/generated_samples_spd_ddpm_reproduced.csv",index=False)
 
 

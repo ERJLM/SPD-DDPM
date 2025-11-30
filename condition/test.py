@@ -23,7 +23,7 @@ Y = pd.read_csv("data/condition/test_y.csv")
 Y = Y.iloc[0:n_sample,1:14]
 a = 0
 
-model_path = "result/spd_condition.pth"
+model_path = "result/ddpm_co-2025-11-29-19-16-00/model_last.pth"
 Y_size = Y.shape[1]
 vectors_list = pd.DataFrame(index=range(n_sample*num), columns=range(m*m))
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -39,7 +39,7 @@ for i in range(n_sample):
     samples1 = samples.reshape(n_len, m*m)
     samples_list = pd.DataFrame(samples1.cpu())
     vectors_list.iloc[i*num:i*num+n_len,:] = samples_list.iloc[:,:]
-    vectors_list.to_csv("data/condition/ddpm_spds_list.csv",index=False)
+    vectors_list.to_csv("data/condition/ddpm_spds_list_reproduced.csv",index=False)
     print(i)
 
 

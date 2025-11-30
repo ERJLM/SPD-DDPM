@@ -131,9 +131,9 @@ class Diffusion:
                 merged_tensor = unit_matrix.repeat(n, 1, 1).to(self.device).double()
                 dis2 = spd_dis(merged_tensor,x).mean().cpu()
 
-                print(test_dis)
-                print(loss)
-                print(dis2)
+                print(f"Distance between target and generated sample: {test_dis}")
+                print(f"Loss: {loss}")
+                print(f"Distance between I and generated sample: {dis2}")
 
         model.train()   
         return x
@@ -205,13 +205,12 @@ def launch():
     parser = argparse.ArgumentParser()
     args = parser.parse_args()
     args.run_name = "DDPM_Unconditional"
-    args.epochs = 50
+    args.epochs = 200
     args.batch_size = 150
     args.spd_size = 8
     args.time_size = 256
     args.dataset_path = "data/uncondition/train_data.csv"
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(args.device)
     args.lr = 0.0015
     args.results_dir = 'result/spd_ddpm_un-' + datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     args.resume = ""
