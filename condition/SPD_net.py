@@ -15,31 +15,31 @@ class SPD_NET(nn.Module):
         super().__init__()
         self.time_dim = time_size
         self.Y_size = Y_size
-        
+        spd_size_div2 = (spd_size//2) + 1
+        spd_size_div4 = spd_size_div2 // 2
         self.trans1 = SPDTransform(spd_size, spd_size, self.time_dim,Y_size)
         self.trans1_5 = SPDTransform1(spd_size, spd_size, self.time_dim,Y_size)
         self.trans2 = SPDTransform(spd_size, spd_size, self.time_dim,Y_size)
         self.trans2_5 = SPDTransform1(spd_size, spd_size, self.time_dim,Y_size)
+        self.trans3 = SPDTransform(spd_size, spd_size_div2, self.time_dim,Y_size)
+        self.trans3_5= SPDTransform1(spd_size_div2, spd_size_div2, self.time_dim,Y_size)
 
-        self.trans3 = SPDTransform(spd_size, ceil(spd_size/2), self.time_dim,Y_size)
-        self.trans3_5= SPDTransform1(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
+        self.trans4 = SPDTransform(spd_size_div2, spd_size_div2, self.time_dim,Y_size)
+        self.trans4_5 = SPDTransform1(spd_size_div2, spd_size_div2, self.time_dim,Y_size)
 
-        self.trans4 = SPDTransform(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
-        self.trans4_5 = SPDTransform1(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
+        self.trans5 = SPDTransform(spd_size_div2, spd_size_div4, self.time_dim,Y_size)
+        self.trans5_5 = SPDTransform1(spd_size_div4, spd_size_div4, self.time_dim,Y_size) 
 
-        self.trans5 = SPDTransform(ceil(spd_size/2), ceil(spd_size/4), self.time_dim,Y_size)
-        self.trans5_5 = SPDTransform1(ceil(spd_size/4), ceil(spd_size/4), self.time_dim,Y_size) 
+        self.trans5_8 = SPDTransform(spd_size_div4, spd_size_div4, self.time_dim,Y_size)
+        self.trans5_9 = SPDTransform1(spd_size_div4, spd_size_div4, self.time_dim,Y_size) 
 
-        self.trans5_8 = SPDTransform(ceil(spd_size/4), ceil(spd_size/4), self.time_dim,Y_size)
-        self.trans5_9 = SPDTransform1(ceil(spd_size/4), ceil(spd_size/4), self.time_dim,Y_size) 
+        self.trans6 = SPDTransform(spd_size_div4, spd_size_div2, self.time_dim,Y_size)
+        self.trans6_5 = SPDTransform1(spd_size_div2, spd_size_div2, self.time_dim,Y_size)
 
-        self.trans6 = SPDTransform(ceil(spd_size/4), ceil(spd_size/2), self.time_dim,Y_size)
-        self.trans6_5 = SPDTransform1(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
+        self.trans7 = SPDTransform(spd_size_div2, spd_size_div2, self.time_dim,Y_size)
+        self.trans7_5 = SPDTransform1(spd_size_div2, spd_size_div2, self.time_dim,Y_size)
 
-        self.trans7 = SPDTransform(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
-        self.trans7_5 = SPDTransform1(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
-
-        self.trans8 = SPDTransform(ceil(spd_size/2), spd_size, self.time_dim,Y_size)
+        self.trans8 = SPDTransform(spd_size_div2, spd_size, self.time_dim,Y_size)
         self.trans8_5 = SPDTransform1(spd_size, spd_size, self.time_dim,Y_size)
         self.trans9 = SPDTransform(spd_size, spd_size, self.time_dim,Y_size)
         self.trans9_5 = SPDTransform1(spd_size, spd_size, self.time_dim,Y_size)
