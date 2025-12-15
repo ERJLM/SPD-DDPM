@@ -15,7 +15,7 @@ def generate_train_sample(n,m):
     samples = sample_gaussian_spd(n,mean,0.4,n_jobs=40)
     samples = torch.tensor(samples).to(device)
     sample_beta = tensor_power(samples,0.5)
-    # Translate the samples so they are centered arounf the init sample
+    # Translate the samples so they are centered around the init sample
     sample_list = torch.matmul(torch.matmul((tensor_power(init,0.5)),samples),tensor_power(init,0.5))
     vectors = sample_list.reshape(n, m*m) 
 

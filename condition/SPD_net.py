@@ -3,6 +3,7 @@ from torch import nn
 from torch.autograd import Function
 import numpy as np
 from support_function import *
+from math import ceil
 
 def one_param(m):
     "get model first parameter"
@@ -15,35 +16,35 @@ class SPD_NET(nn.Module):
         self.time_dim = time_size
         self.Y_size = Y_size
         
-        self.trans1 = SPDTransform(spd_size, 10, self.time_dim,Y_size)
-        self.trans1_5 = SPDTransform1(10, 10, self.time_dim,Y_size)
-        self.trans2 = SPDTransform(10, 10, self.time_dim,Y_size)
-        self.trans2_5 = SPDTransform1(10, 10, self.time_dim,Y_size)
+        self.trans1 = SPDTransform(spd_size, spd_size, self.time_dim,Y_size)
+        self.trans1_5 = SPDTransform1(spd_size, spd_size, self.time_dim,Y_size)
+        self.trans2 = SPDTransform(spd_size, spd_size, self.time_dim,Y_size)
+        self.trans2_5 = SPDTransform1(spd_size, spd_size, self.time_dim,Y_size)
 
-        self.trans3 = SPDTransform(10, 6, self.time_dim,Y_size)
-        self.trans3_5= SPDTransform1(6, 6, self.time_dim,Y_size)
+        self.trans3 = SPDTransform(spd_size, ceil(spd_size/2), self.time_dim,Y_size)
+        self.trans3_5= SPDTransform1(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
 
-        self.trans4 = SPDTransform(6, 6, self.time_dim,Y_size)
-        self.trans4_5 = SPDTransform1(6, 6, self.time_dim,Y_size)
+        self.trans4 = SPDTransform(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
+        self.trans4_5 = SPDTransform1(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
 
-        self.trans5 = SPDTransform(6, 3, self.time_dim,Y_size)
-        self.trans5_5 = SPDTransform1(3, 3, self.time_dim,Y_size) 
+        self.trans5 = SPDTransform(ceil(spd_size/2), ceil(spd_size/4), self.time_dim,Y_size)
+        self.trans5_5 = SPDTransform1(ceil(spd_size/4), ceil(spd_size/4), self.time_dim,Y_size) 
 
-        self.trans5_8 = SPDTransform(3, 3, self.time_dim,Y_size)
-        self.trans5_9 = SPDTransform1(3, 3, self.time_dim,Y_size) 
+        self.trans5_8 = SPDTransform(ceil(spd_size/4), ceil(spd_size/4), self.time_dim,Y_size)
+        self.trans5_9 = SPDTransform1(ceil(spd_size/4), ceil(spd_size/4), self.time_dim,Y_size) 
 
-        self.trans6 = SPDTransform(3, 6, self.time_dim,Y_size)
-        self.trans6_5 = SPDTransform1(6, 6, self.time_dim,Y_size)
+        self.trans6 = SPDTransform(ceil(spd_size/4), ceil(spd_size/2), self.time_dim,Y_size)
+        self.trans6_5 = SPDTransform1(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
 
-        self.trans7 = SPDTransform(6, 6, self.time_dim,Y_size)
-        self.trans7_5 = SPDTransform1(6, 6, self.time_dim,Y_size)
+        self.trans7 = SPDTransform(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
+        self.trans7_5 = SPDTransform1(ceil(spd_size/2), ceil(spd_size/2), self.time_dim,Y_size)
 
-        self.trans8 = SPDTransform(6, 10, self.time_dim,Y_size)
-        self.trans8_5 = SPDTransform1(10, 10, self.time_dim,Y_size)
-        self.trans9 = SPDTransform(10, 10, self.time_dim,Y_size)
-        self.trans9_5 = SPDTransform1(10, 10, self.time_dim,Y_size)
+        self.trans8 = SPDTransform(ceil(spd_size/2), spd_size, self.time_dim,Y_size)
+        self.trans8_5 = SPDTransform1(spd_size, spd_size, self.time_dim,Y_size)
+        self.trans9 = SPDTransform(spd_size, spd_size, self.time_dim,Y_size)
+        self.trans9_5 = SPDTransform1(spd_size, spd_size, self.time_dim,Y_size)
     
-        self.trans10 = SPDTransform(10, 10, self.time_dim,Y_size)
+        self.trans10 = SPDTransform(spd_size, spd_size, self.time_dim,Y_size)
 
         self.rect1  = SPDRectified()
         self.rect1_5  = SPDRectified()
@@ -213,11 +214,10 @@ class SPDRectifiedFunction(Function):
     def forward(ctx, input, epsilon):
         ctx.save_for_backward(input, epsilon)
 
-        output = input.new(input.size(0), input.size(1), input.size(2))
-        for k, x in enumerate(input):
-            u, s, v = x.svd()
-            s[s < epsilon[0]] = epsilon[0]
-            output[k] = u.mm(s.diag().mm(u.t()))
+        U, S, Vh = torch.linalg.svd(input, full_matrices=False)
+        S = torch.clamp(S, min=epsilon[0])
+        S_diag = torch.diag_embed(S)
+        output = U.bmm(S_diag.bmm(U.transpose(-1, -2)))
         return output
 
     @staticmethod
@@ -226,33 +226,28 @@ class SPDRectifiedFunction(Function):
         grad_input = None
         
         if ctx.needs_input_grad[0]:
-            eye = input.new(input.size(1))
-            eye.fill_(1); eye = eye.diag()
-            grad_input = input.new(input.size(0), input.size(1), input.size(2))
-            for k, g in enumerate(grad_output):
-                if len(g.shape) == 1:
-                    continue
-
-                g = symmetric(g)    
-
-                x = input[k]
-                u, s, v = x.svd()
-                
-                max_mask = s > epsilon
-                s_max_diag = s.clone(); s_max_diag[~max_mask] = epsilon; s_max_diag = s_max_diag.diag()
-                Q = max_mask.diag().double()
-                
-                dLdV = 2*(g.mm(u.mm(s_max_diag)))
-                dLdS = eye * (Q.mm(u.t().mm(g.mm(u))))
-                
-                P = s.unsqueeze(1)
-                P = P.expand(-1, P.size(0))
-                P = P - P.t()
-                mask_zero = torch.abs(P) == 0
-                P = 1 / P
-                P[mask_zero] = 0
-
-                grad_input[k] = u.mm(symmetric(P.t() * u.t().mm(dLdV))+dLdS).mm(u.t())
+            U, S, vh = torch.linalg.svd(input, full_matrices=False)
+            UT_g = torch.bmm(U.transpose(-2, -1), grad_output)
+            UT_g_u = torch.bmm(UT_g, U)
+            max_mask = S > epsilon 
+            Q = max_mask
+            S_max_diag = torch.clamp(S, min=epsilon[0]) 
+            S_max_diag_mat = torch.diag_embed(S_max_diag)
+            dLdS_diag = torch.diag_embed(U.new_tensor(Q) * torch.diagonal(UT_g_u, dim1=-2, dim2=-1)) 
+            dLdV = 2 * torch.bmm(grad_output, torch.bmm(U, S_max_diag_mat)) 
+            
+            s_expand_row = S.unsqueeze(-1) 
+            s_expand_col = S.unsqueeze(-2) 
+            P = s_expand_row - s_expand_col 
+            
+            mask_zero = torch.abs(P) < 1e-9
+            P_inv = torch.where(mask_zero, torch.zeros_like(P), 1.0 / P)
+            
+            UT_dLdV = torch.bmm(U.transpose(-2, -1), dLdV) 
+            A = P_inv.transpose(-2, -1) * UT_dLdV 
+            
+            sym_term = 0.5 * (A + A.transpose(-2, -1))
+            grad_input = torch.bmm(U, torch.bmm(sym_term + dLdS_diag, U.transpose(-2, -1)))
             
         return grad_input, None
 
@@ -298,20 +293,20 @@ class SPDTransform1(nn.Module):
 
         self.emb_layer = nn.Sequential( 
             nn.Linear(time_dim,time_dim).double(),
-            nn.SiLU().double(), 
+            nn.SiLU(), 
             nn.Linear(time_dim,output_size*2).double(),
         )
 
         self.Y_layer = nn.Sequential( 
             nn.Linear(Y_dim,output_size*output_size).double(),
-            nn.SiLU().double(), 
+            nn.SiLU(), 
             nn.Linear(output_size*output_size,output_size*output_size).double(),
         )
 
     def forward(self, input,t,Y):
         output = input
         #emb = self.emb_layer(t)   
-        emb_Y = self.Y_layer(Y.double())
+        emb_Y = self.Y_layer(Y)
         if self.increase_dim:
             output = self.increase_dim(output)
         weight = self.weight.unsqueeze(0)

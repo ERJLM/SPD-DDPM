@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from torch import optim
+from torch.utils.data import DataLoader
 from utils import *
 import logging
 from support_function import *
@@ -11,9 +12,11 @@ import warnings
 import numpy as np
 import json
 from datetime import datetime
-from pyriemann.datasets import sample_gaussian_spd
+import time
+from pyriemann_utils.sampling import sample_gaussian_spd
+#from pyriemann.datasets import sample_gaussian_spd
 import math
-warnings.filterwarnings("ignore") 
+warnings.filterwarnings("ignore")
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s: %(message)s", level=logging.INFO, datefmt="%I:%M:%S")
 
@@ -29,8 +32,8 @@ class Diffusion:
         self.beta = self.prepare_noise_schedule().to(device)   
         self.alpha = torch.sqrt(1 - self.beta)
         self.alpha_hat = torch.cumprod(self.alpha, dim=0)    
-        self.beta_hat = 1-self.alpha_hat**2          
-
+        self.beta_hat = 1-self.alpha_hat**2   
+        
     def prepare_noise_schedule(self):
         return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
     
@@ -48,12 +51,11 @@ class Diffusion:
         m = x.shape[1]
 
         mean = np.eye(m)
-        epi1 = sample_gaussian_spd(n,mean,1,n_jobs=40)
-        epi1 = torch.tensor(epi1).to(device)
+        epi1 = sample_gaussian_spd(n,mean,1,n_jobs=-1)
+        epi1 = torch.tensor(epi1).to(self.device)
         epi1_beta = spd_mul(epi1,beta_hat.unsqueeze(1).unsqueeze(2))
         x_t = spd_plus(spd_mul(x,alpha_hat),spd_mul(epi1,beta_hat.unsqueeze(1).unsqueeze(2)))
         r1 = (beta**2)/(beta_hat)/alpha
-
         
         return x_t ,epi1_beta ,r1
 
@@ -66,11 +68,13 @@ class Diffusion:
             The complete algorithm is in the condition test.py file """
             
         device = "cuda" if torch.cuda.is_available() else "cpu"
+        
         with torch.no_grad():
             mean = np.eye(self.spd_size)
-            x = sample_gaussian_spd(n1,mean,1,n_jobs=40)
+            x = sample_gaussian_spd(n1,mean,1,n_jobs=-1)
             x = torch.tensor(x).to(device)
             model.eval()
+            
             for i in reversed(range(1,self.noise_steps)):
                 n = x.size(0)
                 if n < 2:
@@ -86,13 +90,12 @@ class Diffusion:
                 alpha_hat_t_1 = self.alpha_hat[t-1][0]
 
                 mean = np.eye(self.spd_size)
-                epi = sample_gaussian_spd(n,mean,1,n_jobs=40)
+                epi = sample_gaussian_spd(n,mean,1,n_jobs=-1)
                 epi = torch.tensor(epi).to(device)    
                 epi_beta = tensor_power(epi,beta_hat.item())
                 predicted_noise = model(x, t,Y)
                 loss = spd_dis(epi, predicted_noise).mean()
                 
-
                 r1 =1/alpha
                 r2 = beta/beta_hat/alpha
                 mu_x = spd_minus(spd_mul(x,r1),spd_mul(predicted_noise,r2))
@@ -104,7 +107,6 @@ class Diffusion:
 
                 x = x[~mask]
                 Y = Y[~mask]
-
         model.train()  
         return x
 
@@ -118,7 +120,7 @@ def adjust_learning_rate(optimizer, epoch, args):
     
 def train(args):
     device = args.device
-    dataset = CSVDataset(args)
+    dataset = CSVDataset(args) # read training data
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
     model = SPD_NET(args.spd_size,args.time_size,args.Y_size).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)

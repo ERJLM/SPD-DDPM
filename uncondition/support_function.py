@@ -56,4 +56,3 @@ def tensor_power(A,r):
     power_A = torch.matmul(torch.matmul(U,torch.diag_embed(pow_S)),U.transpose(1,2))
 
     return(power_A)
-

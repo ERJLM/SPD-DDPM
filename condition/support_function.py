@@ -27,14 +27,14 @@ def spd_mul(A,r):
     return matrix_mul
 
 def Log(Y,Z):
-
     log_YZ = logm(torch.matmul(torch.matmul(tensor_power(Y,-0.5),Z),tensor_power(Y,-0.5)))
     result = torch.matmul(torch.matmul(tensor_power(Y,0.5),log_YZ),tensor_power(Y,0.5))
 
     return result
 
 def logm(Y):
-    S, U = torch.linalg.eigh(Y)
+    eps = 1e-6
+    U, S, Vh = torch.linalg.svd(Y, full_matrices=False)
     log_S = torch.log(S)
     log_Y = torch.matmul(torch.matmul(U,torch.diag_embed(log_S)),U.transpose(1,2))
     return log_Y
@@ -46,7 +46,7 @@ def Exp(Y,Z):
     return result
 
 def expm(Y):
-    S, U = torch.linalg.eigh(Y)
+    U, S, Vh = torch.linalg.svd(Y, full_matrices=False)
     exp_S = torch.exp(S)
     exp_Y = torch.matmul(torch.matmul(U,torch.diag_embed(exp_S)),U.transpose(1,2))
     return exp_Y
